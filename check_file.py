@@ -1,9 +1,13 @@
-import mistune
-import os
-import requests
-import sys
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import enum
 import errno
+import os
+import sys
+
+import mistune
+import requests
 
 RESET_SEQ = "\033[0m"
 COLOR_SEQ = "\033[%sm"
@@ -14,13 +18,16 @@ YELLOW = "1;33"
 GREEN = "1;32"
 WHITE = "1"
 
+
 class Result(enum.Enum):
     Skipped = -1
     Success = 1
     Failed = 0
 
+
 def make_result(bool_res):
     return Result.Success if bool_res else Result.Failed
+
 
 class FakeRenderer(mistune.Renderer):
     files_to_check = None
@@ -29,21 +36,20 @@ class FakeRenderer(mistune.Renderer):
         super(FakeRenderer, self).__init__(**kwargs)
         self.files_to_check = []
 
-
     def link(self, link, title, text):
         self.files_to_check.append(link)
         return super(FakeRenderer, self).link(link, title, text)
 
     def image(self, src, title, text):
-        self.files_to_check.append(link)
-        return super(FakeRenderer, self).link(link, title, text)
+        self.files_to_check.append(src)
+        return super(FakeRenderer, self).link(src, title, text)
 
 
 def check_file(base_dir, link):
     if link.startswith("http://") or link.startswith("https://"):
         try:
             return make_result(requests.head(link, timeout=1).ok)
-        except requests.exceptions.ConnectionError as e:
+        except requests.exceptions.RequestException as e:
             print(e)
             return Result.Failed
     else:
@@ -51,9 +57,6 @@ def check_file(base_dir, link):
         if not link:
             return Result.Skipped
         return make_result(os.path.exists(os.path.join(base_dir, link)))
-
-def check(link):
-    assert check_file(link), link
 
 
 def test_files():
@@ -87,10 +90,12 @@ def test_files():
     print()
     print("Check finished, checked %s files with %s links" % (total_files, total_links), sep="")
     if bad_files:
-        print(COLOR_SEQ % RED, "Errors detected: %s bad files with %s bad links"% (bad_files, bad_links), RESET_SEQ, sep="")
+        print(COLOR_SEQ % RED, "Errors detected: %s bad files with %s bad links" % (bad_files, bad_links), RESET_SEQ,
+              sep="")
         return errno.ENOENT
     else:
         print(COLOR_SEQ % WHITE, "No errors detected", RESET_SEQ, sep="")
         return 0
+
 
 sys.exit(test_files())
